@@ -4,7 +4,7 @@ from apps.loans.models import Loan
 from apps.loans.services.credit_score import CreditScoreService
 from apps.loans.services.interest import InterestService
 from django.db.models import Sum
-from datetime import date
+from datetime import date, timedelta
 
 class LoanService:
     @staticmethod
@@ -63,6 +63,9 @@ class LoanService:
         eligibility = LoanService.check_eligibility(customer_id, loan_amount, interest_rate, tenure)
         
         if eligibility['approval']:
+            start_date = date.today()
+            end_date = start_date + timedelta(days=tenure * 30)
+
             # Create loan
             loan = Loan.objects.create(
                 customer_id=customer_id,
@@ -70,6 +73,8 @@ class LoanService:
                 tenure=tenure,
                 interest_rate=eligibility['corrected_interest_rate'],
                 monthly_repayment=eligibility['monthly_installment'],
+                start_date=start_date,
+                end_date=end_date,
                 status='APPROVED'
             )
             return {

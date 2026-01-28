@@ -1,0 +1,221 @@
+<!-- view_loan.html -->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QA: View Loan</title>
+    <style>
+        :root {
+            --primary: #0f172a;
+            --accent: #06b6d4;
+            --success: #22c55e;
+            --error: #ef4444;
+            --bg: #f1f5f9;
+            --card: #ffffff;
+            --border: #e2e8f0;
+        }
+
+        body {
+            font-family: -apple-system, system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--primary);
+            padding: 2rem;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            background: var(--card);
+            padding: 2.5rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 600px;
+        }
+
+        h1 {
+            margin: 0 0 1.5rem 0;
+            font-size: 1.5rem;
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 1rem;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        input {
+            flex: 1;
+            padding: 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 1rem;
+        }
+
+        button {
+            padding: 0.75rem 1.5rem;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        .result-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-top: 1rem;
+            display: none;
+        }
+
+        .info-card {
+            background: #f8fafc;
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+
+        h3 {
+            margin: 0 0 0.5rem 0;
+            font-size: 1rem;
+            color: #64748b;
+        }
+
+        .row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .val {
+            font-weight: 600;
+        }
+
+        pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin-top: 1.5rem;
+            display: none;
+        }
+
+        .error-msg {
+            background: #fee2e2;
+            color: #b91c1c;
+            padding: 1rem;
+            border-radius: 8px;
+            display: none;
+            text-align: center;
+            font-weight: 500;
+        }
+
+        .nav {
+            margin-bottom: 2rem;
+            font-size: 0.9rem;
+        }
+
+        a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <div class="nav"><a href="/qa/">← Back to Dashboard</a></div>
+        <h1>View Loan Details</h1>
+
+        <div class="input-group">
+            <input type="number" id="loanId" placeholder="Enter Loan ID (e.g. 9001)">
+            <button onclick="fetchLoan()" id="btn">Fetch</button>
+        </div>
+
+        <div id="errorMsg" class="error-msg"></div>
+
+        <div id="resultGrid" class="result-grid">
+            <div class="info-card">
+                <h3>👤 Customer</h3>
+                <div id="custDetails"></div>
+            </div>
+            <div class="info-card">
+                <h3>💰 Loan Config</h3>
+                <div id="loanDetails"></div>
+            </div>
+        </div>
+
+        <pre id="rawJson"></pre>
+    </div>
+
+    <script>
+        async function fetchLoan() {
+            const id = document.getElementById('loanId').value;
+            if (!id) return;
+
+            const btn = document.getElementById('btn');
+            const grid = document.getElementById('resultGrid');
+            const pre = document.getElementById('rawJson');
+            const err = document.getElementById('errorMsg');
+            const custBox = document.getElementById('custDetails');
+            const loanBox = document.getElementById('loanDetails');
+
+            btn.disabled = true;
+            btn.textContent = '...';
+            grid.style.display = 'none';
+            pre.style.display = 'none';
+            err.style.display = 'none';
+
+            try {
+                const res = await fetch(`/view-loan/${id}`);
+                if (!res.ok) throw new Error(`HTTP ${res.status}: Loan Not Found`);
+
+                const data = await res.json();
+
+                grid.style.display = 'grid';
+                pre.style.display = 'block';
+                pre.textContent = JSON.stringify(data, null, 2);
+
+                const c = data.customer;
+                custBox.innerHTML = `
+                <div class="row"><span>Name</span><span class="val">${c.first_name} ${c.last_name}</span></div>
+                <div class="row"><span>Phone</span><span class="val">${c.phone_number}</span></div>
+                <div class="row"><span>Age</span><span class="val">${c.age}</span></div>
+            `;
+
+                loanBox.innerHTML = `
+                <div class="row"><span>Amount</span><span class="val">₹${data.loan_amount}</span></div>
+                <div class="row"><span>Rate</span><span class="val">${data.interest_rate}%</span></div>
+                <div class="row"><span>EMI</span><span class="val">₹${data.monthly_installment}</span></div>
+                <div class="row"><span>Tenure</span><span class="val">${data.tenure}m</span></div>
+            `;
+
+            } catch (e) {
+                err.style.display = 'block';
+                err.textContent = e.message;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Fetch';
+            }
+        }
+    </script>
+
+</body>
+
+</html>

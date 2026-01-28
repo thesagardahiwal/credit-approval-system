@@ -1,0 +1,271 @@
+<!-- register.html -->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QA: Register Customer</title>
+    <style>
+        :root {
+            --primary: #0f172a;
+            --accent: #3b82f6;
+            --success: #22c55e;
+            --error: #ef4444;
+            --bg: #f1f5f9;
+            --card: #ffffff;
+            --border: #e2e8f0;
+        }
+
+        body {
+            font-family: -apple-system, system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--primary);
+            padding: 2rem;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            background: var(--card);
+            padding: 2.5rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 500px;
+        }
+
+        h1 {
+            margin: 0 0 1.5rem 0;
+            font-size: 1.5rem;
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 1rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: #475569;
+        }
+
+        input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 1rem;
+            box-sizing: border-box;
+            transition: border-color 0.2s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--accent);
+            ring: 2px solid var(--accent);
+        }
+
+        button {
+            width: 100%;
+            padding: 0.875rem;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            margin-top: 1rem;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        button:disabled {
+            background: #94a3b8;
+            cursor: not-allowed;
+        }
+
+        .response-container {
+            margin-top: 2rem;
+            display: none;
+        }
+
+        .response-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-size: 0.85rem;
+            margin: 0;
+            white-space: pre-wrap;
+        }
+
+        .badge {
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .badge.success {
+            background: #dcfce7;
+            color: #15803d;
+        }
+
+        .badge.error {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
+
+        .nav {
+            margin-bottom: 2rem;
+            font-size: 0.9rem;
+        }
+
+        a {
+            color: var(--accent);
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <div class="nav"><a href="/qa/">← Back to Dashboard</a></div>
+        <h1>Register Customer</h1>
+
+        <form id="apiForm">
+            <div class="form-group">
+                <label>First Name</label>
+                <input type="text" name="first_name" required placeholder="John">
+            </div>
+            <div class="form-group">
+                <label>Last Name</label>
+                <input type="text" name="last_name" required placeholder="Doe">
+            </div>
+            <div class="form-group">
+                <label>Age</label>
+                <input type="number" name="age" required min="18" max="100" placeholder="30">
+            </div>
+            <div class="form-group">
+                <label>Monthly Income (₹)</label>
+                <input type="number" name="monthly_income" required min="0" placeholder="50000">
+            </div>
+            <div class="form-group">
+                <label>Phone Number</label>
+                <input type="tel" name="phone_number" required placeholder="1234567890">
+            </div>
+
+            <button type="submit" id="submitBtn">Register Customer</button>
+        </form>
+
+        <div id="responseArea" class="response-container">
+            <div class="response-header">
+                <span>Response</span>
+                <span id="statusBadge" class="badge"></span>
+            </div>
+            <pre id="jsonOutput"></pre>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('apiForm');
+        const btn = document.getElementById('submitBtn');
+        const output = document.getElementById('jsonOutput');
+        const area = document.getElementById('responseArea');
+        const badge = document.getElementById('statusBadge');
+
+        function getCookie(name) {
+            let v = null;
+            if (document.cookie && document.cookie !== '') {
+                document.cookie.split(';').forEach(c => {
+                    const p = c.trim();
+                    if (p.substring(0, name.length + 1) === (name + '=')) {
+                        v = decodeURIComponent(p.substring(name.length + 1));
+                    }
+                });
+            }
+            return v;
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            btn.disabled = true;
+            btn.textContent = 'Processing...';
+            area.style.display = 'none';
+
+            // Convert types
+            const fd = new FormData(form);
+            const payload = {
+                first_name: fd.get('first_name'),
+                last_name: fd.get('last_name'),
+                age: parseInt(fd.get('age')),
+                monthly_income: parseInt(fd.get('monthly_income')),
+                phone_number: fd.get('phone_number')
+            };
+
+            try {
+                const res = await fetch('/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+
+                area.style.display = 'block';
+                output.textContent = JSON.stringify(data, null, 2);
+
+                if (res.ok) {
+                    badge.textContent = `STATUS: ${res.status} OK`;
+                    badge.className = 'badge success';
+                } else {
+                    badge.textContent = `STATUS: ${res.status} ERROR`;
+                    badge.className = 'badge error';
+                }
+
+            } catch (err) {
+                area.style.display = 'block';
+                badge.textContent = 'NETWORK ERROR';
+                badge.className = 'badge error';
+                output.textContent = err.toString();
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Register Customer';
+            }
+        });
+    </script>
+
+</body>
+
+</html>

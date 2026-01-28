@@ -1,5 +1,6 @@
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include
+from django.views.generic import RedirectView
 from apps.customers.views import RegisterView
 from apps.loans.views import (
     CheckEligibilityView, 
@@ -10,6 +11,11 @@ from apps.loans.views import (
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    
+    # QA Interface
+    path('qa/', include('apps.qa_interface.urls')),
+    path('', RedirectView.as_view(url='/qa/', permanent=False)), # Redirect root to QA Dashboard
+
     
     # Customer Endpoints
     path('register', RegisterView.as_view(), name='register'),

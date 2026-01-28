@@ -1,0 +1,195 @@
+<!-- view_loans.html -->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>QA: Customer Loans</title>
+    <style>
+        :root {
+            --primary: #0f172a;
+            --accent: #ec4899;
+            --bg: #f1f5f9;
+            --card: #ffffff;
+            --border: #e2e8f0;
+        }
+
+        body {
+            font-family: -apple-system, system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--primary);
+            padding: 2rem;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            background: var(--card);
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 800px;
+        }
+
+        h1 {
+            margin: 0 0 1.5rem 0;
+            font-size: 1.5rem;
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 1rem;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+            max-width: 400px;
+        }
+
+        input {
+            flex: 1;
+            padding: 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+        }
+
+        button {
+            padding: 0.75rem 1.5rem;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+            display: none;
+        }
+
+        th {
+            text-align: left;
+            background: #f8fafc;
+            padding: 1rem;
+            font-weight: 600;
+            border-bottom: 2px solid var(--border);
+            color: #64748b;
+        }
+
+        td {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .empty {
+            text-align: center;
+            padding: 2rem;
+            color: #94a3b8;
+            display: none;
+        }
+
+        .nav {
+            margin-bottom: 2rem;
+            font-size: 0.9rem;
+        }
+
+        a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <div class="nav"><a href="/qa/">← Back to Dashboard</a></div>
+        <h1>Customer Portfolio</h1>
+
+        <div class="input-group">
+            <input type="number" id="custId" placeholder="Customer ID (e.g. 103)">
+            <button onclick="fetchLoans()" id="btn">Load</button>
+        </div>
+
+        <table id="tbl">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Amount</th>
+                    <th>Interest</th>
+                    <th>EMI</th>
+                    <th>Left</th>
+                </tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+        </table>
+
+        <div id="msg" class="empty"></div>
+    </div>
+
+    <script>
+        async function fetchLoans() {
+            const id = document.getElementById('custId').value;
+            if (!id) return;
+
+            const btn = document.getElementById('btn');
+            const tbl = document.getElementById('tbl');
+            const tbody = document.getElementById('tbody');
+            const msg = document.getElementById('msg');
+
+            btn.disabled = true;
+            btn.textContent = '...';
+            tbl.style.display = 'none';
+            msg.style.display = 'none';
+            tbody.innerHTML = '';
+
+            try {
+                const res = await fetch(`/view-loans/${id}`);
+                const data = await res.json();
+
+                let loans = data;
+                if (data.results) {
+                    loans = data.results;
+                }
+
+                if (!Array.isArray(loans) || loans.length === 0) {
+                    msg.textContent = 'No loans found for this customer.';
+                    msg.style.display = 'block';
+                    return;
+                }
+
+                tbl.style.display = 'table';
+                loans.forEach(l => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                    <td>${l.loan_id}</td>
+                    <td>₹${l.loan_amount}</td>
+                    <td>${l.interest_rate}%</td>
+                    <td>₹${l.monthly_repayment}</td>
+                    <td>${l.repayments_left || '-'}</td>
+                `;
+                    tbody.appendChild(tr);
+                });
+
+            } catch (e) {
+                msg.textContent = 'Error: ' + e.message;
+                msg.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Load';
+            }
+        }
+    </script>
+
+</body>
+
+</html>

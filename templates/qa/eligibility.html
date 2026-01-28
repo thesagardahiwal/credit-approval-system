@@ -1,0 +1,245 @@
+<!-- eligibility.html -->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QA: Check Eligibility</title>
+    <style>
+        :root {
+            --primary: #0f172a;
+            --accent: #8b5cf6;
+            --success: #22c55e;
+            --error: #ef4444;
+            --bg: #f1f5f9;
+            --card: #ffffff;
+            --border: #e2e8f0;
+        }
+
+        body {
+            font-family: -apple-system, system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--primary);
+            padding: 2rem;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            background: var(--card);
+            padding: 2.5rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 500px;
+        }
+
+        h1 {
+            margin: 0 0 1.5rem 0;
+            font-size: 1.5rem;
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 1rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: #475569;
+        }
+
+        input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--accent);
+            ring: 2px solid var(--accent);
+        }
+
+        button {
+            width: 100%;
+            padding: 0.875rem;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 1rem;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        button:disabled {
+            background: #94a3b8;
+            cursor: not-allowed;
+        }
+
+        .response-container {
+            margin-top: 2rem;
+            display: none;
+        }
+
+        pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            font-size: 0.85rem;
+        }
+
+        .badge {
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+            display: inline-block;
+        }
+
+        .badge.success {
+            background: #dcfce7;
+            color: #15803d;
+        }
+
+        .badge.error {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
+
+        .nav {
+            margin-bottom: 2rem;
+            font-size: 0.9rem;
+        }
+
+        a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <div class="nav"><a href="/qa/">← Back to Dashboard</a></div>
+        <h1>Check Eligibility</h1>
+
+        <form id="apiForm">
+            <div class="form-group">
+                <label>Customer ID</label>
+                <input type="number" name="customer_id" required placeholder="e.g. 101">
+            </div>
+            <div class="form-group">
+                <label>Loan Amount (₹)</label>
+                <input type="number" name="loan_amount" required min="1000" placeholder="50000">
+            </div>
+            <div class="form-group">
+                <label>Interest Rate (%)</label>
+                <input type="number" name="interest_rate" required step="0.1" placeholder="12.0">
+            </div>
+            <div class="form-group">
+                <label>Tenure (Months)</label>
+                <input type="number" name="tenure" required min="1" placeholder="12">
+            </div>
+
+            <button type="submit" id="submitBtn">Check Eligibility</button>
+        </form>
+
+        <div id="responseArea" class="response-container">
+            <div id="statusBadge" class="badge"></div>
+            <pre id="jsonOutput"></pre>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('apiForm');
+        const btn = document.getElementById('submitBtn');
+        const output = document.getElementById('jsonOutput');
+        const area = document.getElementById('responseArea');
+        const badge = document.getElementById('statusBadge');
+
+        function getCookie(name) {
+            let v = null;
+            if (document.cookie && document.cookie !== '') {
+                document.cookie.split(';').forEach(c => {
+                    if (c.trim().substring(0, name.length + 1) === (name + '=')) v = decodeURIComponent(c.trim().substring(name.length + 1));
+                });
+            }
+            return v;
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            btn.disabled = true;
+            btn.textContent = 'Checking...';
+            area.style.display = 'none';
+
+            const fd = new FormData(form);
+            const payload = {
+                customer_id: parseInt(fd.get('customer_id')),
+                loan_amount: parseFloat(fd.get('loan_amount')),
+                interest_rate: parseFloat(fd.get('interest_rate')),
+                tenure: parseInt(fd.get('tenure'))
+            };
+
+            try {
+                const res = await fetch('/check-eligibility', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+
+                area.style.display = 'block';
+                output.textContent = JSON.stringify(data, null, 2);
+
+                if (data.approval) {
+                    badge.textContent = 'APPROVED';
+                    badge.className = 'badge success';
+                } else {
+                    badge.textContent = 'REJECTED';
+                    badge.className = 'badge error';
+                }
+            } catch (err) {
+                area.style.display = 'block';
+                badge.textContent = 'ERROR';
+                badge.className = 'badge error';
+                output.textContent = err.toString();
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Check Eligibility';
+            }
+        });
+    </script>
+
+</body>
+
+</html>

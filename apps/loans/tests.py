@@ -67,5 +67,13 @@ class LoanServiceTest(TestCase):
         # elif 50 >= credit_score > 30: ...
         # elif 30 >= credit_score > 10: ... (This catches 30)
         
+        # New Logic Calculation:
+        # Repayment: 1.0 * 35 = 35
+        # Count: 1/10 * 20 = 2
+        # Activity: 0 = 0
+        # Volume: 50k/1M * 25 = 1.25
+        # Total = 38.25 -> 38.
+        # 30 < 38 <= 50 -> Interest > 12%.
+        
         self.assertTrue(result['approval'])
-        self.assertEqual(result['corrected_interest_rate'], 16)
+        self.assertEqual(result['corrected_interest_rate'], 12)
