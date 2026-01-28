@@ -5,38 +5,36 @@ class InterestService:
     @staticmethod
     def calculate_monthly_installment(principal, rate, tenure_months):
         """
-        Calculate monthly installment (EMI) using compound interest formula.
-        A = P * (1 + r/n)^(n*t)
-        EMI = A / (months)
+        Calculate monthly installment (EMI) using Standard Reducing Balance Matrix.
+        Formula: E = P * r * (1+r)^n / ((1+r)^n - 1)
         
         Where:
-        P = Principal Amount
-        r = Annual Interest Rate (decimal)
-        n = Number of times interest applied per time period (Assume monthly compounding? implied by compound interest requirement)
-        
-        Detailed requirement: "Use compound interest scheme for calculation of monthly interest."
-        Usually EMI is calculated using: E = P * r * (1+r)^n / ((1+r)^n - 1)
-        But requirement says: "Use compound interest scheme for calculation of monthly interest."
-        
-        Let's interpret strictly: 
-        Total Amount Payble (A) with Compound Interest:
-        A = P * (1 + R/100)^T
-        Where T is time in years (tenure_months / 12)
-        Then Monthly Installment = A / tenure_months
+        P = Principal
+        r = Monthly Interest Rate (Annual Rate / 12 / 100)
+        n = Tenure in Months
         """
+        if tenure_months == 0:
+            return Decimal(0)
+
         P = Decimal(principal)
-        R = Decimal(rate)
-        # Tenure in years
-        T = Decimal(tenure_months) / Decimal(12)
+        annual_rate = Decimal(rate)
         
-        # Compound Interest Formula
-        # A = P * (1 + R/100) ^ T
-        # We need to handle Decimal powers carefully or convert to float for power
+        # Monthly Interest Rate (r)
+        # 12% p.a -> 1% p.m -> 0.01
+        r = annual_rate / Decimal(12) / Decimal(100)
         
-        rate_factor = (1 + R/100)
-        # Using float for power calculation then converting back to Decimal
-        total_amount = P * Decimal(math.pow(float(rate_factor), float(T)))
+        n = Decimal(tenure_months)
         
-        monthly_installment = total_amount / Decimal(tenure_months)
+        if r == 0:
+            return round(P / n, 2)
+            
+        # (1+r)^n
+        pow_factor = Decimal(math.pow(1 + float(r), float(n)))
         
-        return round(monthly_installment, 2)
+        # EMI = P * r * ((1+r)^n) / ((1+r)^n - 1)
+        numerator = P * r * pow_factor
+        denominator = pow_factor - 1
+        
+        emi = numerator / denominator
+        
+        return round(emi, 2)
