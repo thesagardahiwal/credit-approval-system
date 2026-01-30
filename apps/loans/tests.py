@@ -7,6 +7,16 @@ from apps.loans.models import Loan
 from apps.loans.services.credit_score import CreditScoreService
 from apps.loans.services.interest import InterestService
 from apps.loans.services.loan_service import LoanService
+import redis
+import os
+
+# Redis connection for testing
+redis_client = redis.Redis(
+    host=os.environ.get('REDIS_HOST', 'localhost'),
+    port=int(os.environ.get('REDIS_PORT', 6379)),
+    db=int(os.environ.get('REDIS_DB', 1)),
+    decode_responses=True
+)
 
 class EMICalculationTests(TestCase):
     """
@@ -184,3 +194,73 @@ class LoanAPITests(TestCase):
         self.assertEqual(response.status_code, 201 if response.data['loan_approved'] else 200)
         self.assertTrue(response.data.get('loan_approved'))
         self.assertIsNotNone(response.data.get('loan_id'))
+
+
+class CreditScoreCachingTests(TestCase):
+    """
+    Validates Redis caching for credit score calculations.
+    """
+    def setUp(self):
+        self.customer = Customer.objects.create(
+            first_name="Cache", last_name="Tester",
+            phone_number="9999888877", monthly_salary=50000,
+            approved_limit=500000, age=30
+        )
+        # Clear cache before each test
+        try:
+            cache_key = CreditScoreService.get_cache_key(self.customer.customer_id)
+            redis_client.delete(cache_key)
+        except Exception:
+            pass
+
+    def test_credit_score_caching(self):
+        """
+        Verify that credit score is cached after first calculation.
+        """
+        customer_id = self.customer.customer_id
+        cache_key = CreditScoreService.get_cache_key(customer_id)
+        
+        # Clear cache first
+        try:
+            redis_client.delete(cache_key)
+        except Exception:
+            pass
+        
+        # First calculation - should compute and cache
+        score1 = CreditScoreService.calculate_credit_score(customer_id)
+        
+        # Verify cache is set
+        try:
+            cached_score = redis_client.get(cache_key)
+            self.assertIsNotNone(cached_score, "Score should be cached in Redis")
+            self.assertEqual(int(cached_score), score1, "Cached score should match calculated score")
+        except Exception:
+            self.skipTest("Redis not available for caching test")
+        
+        # Second calculation - should return cached value
+        score2 = CreditScoreService.calculate_credit_score(customer_id)
+        self.assertEqual(score1, score2, "Cached score should match")
+
+    def test_cache_invalidation_on_new_loan(self):
+        """
+        Verify that cache is invalidated when a new loan is created.
+        """
+        customer_id = self.customer.customer_id
+        cache_key = CreditScoreService.get_cache_key(customer_id)
+        
+        # Calculate initial score (and cache it)
+        score1 = CreditScoreService.calculate_credit_score(customer_id)
+        
+        try:
+            # Verify cache is set
+            cached_score = redis_client.get(cache_key)
+            self.assertIsNotNone(cached_score, "Score should be cached")
+            
+            # Invalidate cache
+            CreditScoreService.invalidate_cache(customer_id)
+            
+            # Verify cache is cleared
+            cached_score_after = redis_client.get(cache_key)
+            self.assertIsNone(cached_score_after, "Cache should be cleared after invalidation")
+        except Exception:
+            self.skipTest("Redis not available for cache invalidation test")

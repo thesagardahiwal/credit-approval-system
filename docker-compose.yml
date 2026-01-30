@@ -32,6 +32,9 @@ services:
       - ERROR_LOG_DIR=/app/logs
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DB=1
     depends_on:
       - db
       - redis
@@ -49,6 +52,9 @@ services:
       - DATABASE_URL=postgres://postgres:postgres@db:5432/credit_system
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DB=1
     depends_on:
       - db
       - redis

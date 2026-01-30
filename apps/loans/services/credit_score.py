@@ -1,8 +1,36 @@
 from django.db.models import Sum
 from apps.loans.models import Loan
 from datetime import date
+import redis
+import os
+
+# Redis connection
+redis_client = redis.Redis(
+    host=os.environ.get('REDIS_HOST', 'localhost'),
+    port=int(os.environ.get('REDIS_PORT', 6379)),
+    db=int(os.environ.get('REDIS_DB', 1)),
+    decode_responses=True
+)
 
 class CreditScoreService:
+    CACHE_TTL = 86400  # 24 hours in seconds
+    CACHE_KEY_PREFIX = 'credit_score:'
+    
+    @staticmethod
+    def get_cache_key(customer_id):
+        """Generate cache key for customer credit score."""
+        return f"{CreditScoreService.CACHE_KEY_PREFIX}{customer_id}"
+    
+    @staticmethod
+    def invalidate_cache(customer_id):
+        """Invalidate credit score cache for a customer (called after new loan creation)."""
+        cache_key = CreditScoreService.get_cache_key(customer_id)
+        try:
+            redis_client.delete(cache_key)
+        except Exception as e:
+            # If Redis is unavailable, silently continue
+            pass
+    
     @staticmethod
     def calculate_credit_score(customer_id):
         """
@@ -12,7 +40,19 @@ class CreditScoreService:
         iii. Loan activity in current year
         iv. Loan approved volume
         v. If sum of current loans > approved limit, credit score = 0
+        
+        Result is cached for 24 hours to reduce database load.
         """
+        # Check cache first
+        cache_key = CreditScoreService.get_cache_key(customer_id)
+        try:
+            cached_score = redis_client.get(cache_key)
+            if cached_score is not None:
+                return int(cached_score)
+        except Exception as e:
+            # If Redis is unavailable, continue with calculation
+            pass
+        
         score = 0
         customer_loans = Loan.objects.filter(customer_id=customer_id)
         
@@ -57,4 +97,13 @@ class CreditScoreService:
             volume_factor = min(float(approved_volume) / 1000000, 1.0)
             score += volume_factor * 25
         
-        return round(min(score, 100))
+        final_score = round(min(score, 100))
+        
+        # Cache the score for 24 hours
+        try:
+            redis_client.setex(cache_key, CreditScoreService.CACHE_TTL, final_score)
+        except Exception as e:
+            # If Redis is unavailable, continue without caching
+            pass
+        
+        return final_score

@@ -77,6 +77,10 @@ class LoanService:
                 end_date=end_date,
                 status='APPROVED'
             )
+            
+            # Invalidate credit score cache since new loan affects the score
+            CreditScoreService.invalidate_cache(customer_id)
+            
             return {
                 'loan_id': loan.loan_id,
                 'customer_id': customer_id,
